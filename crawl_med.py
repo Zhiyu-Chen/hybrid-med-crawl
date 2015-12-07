@@ -7,9 +7,11 @@ import scrapy
 from scrapy.selector import Selector
 from scrapy.linkextractors import LinkExtractor
 from scrapy.http import HtmlResponse
+import json
 
-q_num = 0
-re_num = 0
+#http://www.utf8-chartable.de/unicode-utf8-table.pl?start=8192&number=128&utf8=string-literal
+
+
 
 extractor = {
     'next_page': LinkExtractor(allow=r'http://www.medhelp.org/forums/Diabetes---Type-2/show/46(.*)'),
@@ -67,7 +69,8 @@ def get_userinfo(user_page):
 
 
 def getQA(qa):
-    str = re.sub(r'\n|\t|<div class="KonaBody">|</div>|<br>|\r|\xa0','',qa)
+    str = re.sub(r'\n|\t|<div class="KonaBody">|</div>|<br>|\r|\xa0|\xe2\x80\x94|\xe2\x80\x99|\xe2\x80\xa6|\xe2\x80\x9c|\xe2\x80\x9d|\xe2\x80\xa2|&gt;|&lt;',' ',qa)
+    str = re.sub(r'\xe2\x80\x99',r"'",str)
     return str.strip()
 
 '''
@@ -82,10 +85,14 @@ crawling the following items from the medhelo.org:
 # ----------------------------------------------main---------------------------------------------------------------
 reload(sys)
 sys.setdefaultencoding('utf8')
-for page_Number in range(0, 1):
+#sys.setdefaultencoding('iso8859-1')
+
+file = open('data.json', 'wb')
+for page_Number in range(0, 232):
     link = "http://www.medhelp.org/forums/Diabetes---Type-2/show/46?page=" + str(page_Number + 1)
     req = urllib2.Request(link, headers={
         'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36"})
+
     try:
         community_page = urllib2.urlopen(req)
     except urllib2.HTTPError, e:
@@ -107,17 +114,16 @@ for page_Number in range(0, 1):
         reply_num = post_response.xpath(path['reply_num']).extract()
         if reply_num == []:
             version = 1
-            print "new verion!"
+            #print "new verion!"
             path = new_path
             reply_num = post_response.xpath(path['reply_num']).extract()
-            print "reply num: %s" %reply_num
             if reply_num == []:
                 reply_num = 0
             else:
                 reply_num = int(reply_num[0].strip().split(' ')[0])
         else:
             reply_num = int(reply_num[0].strip().split(' ')[0])
-            print "old version"
+            #print "old version"
 
         if reply_num == 0:
             continue
@@ -136,17 +142,32 @@ for page_Number in range(0, 1):
             for i in range(1,len(allQA)):
                 answer.append(getQA(allQA[i]))
         else:
-            question= re.sub(r'<div(.*)none">|<div class(.*)</div>|\xa0|</div>|<br>|\t|\n|\r','',allQA[0].strip())
+            question= re.sub(r'<div(.*)none">|<div class(.*)</div>|\xa0|\xe2\x80\x99|&gt;|&lt;|\xe2\x80\x94|\xe2\x80\xa6|\xe2\x80\x9c|\xe2\x80\x9d|\xe2\x80\xa2|</div>|<br>|\t|\n|\r',' ',allQA[0].strip())
+            question = re.sub(r'\xe2\x80\x99',r"'",question).strip()
             for i in range(1,len(allQA)):
-                answer.append(re.sub(r'<div(.*)none">|<div class(.*)</div>|\xa0|</div>|<br>|\t|\n|\r','',allQA[i].strip()))
-
+                astring = re.sub(r'<div(.*)none">|<div class(.*)</div>|\xa0|\xe2\x80\x99|&gt;|&lt;|\xe2\x80\x94|\xe2\x80\xa6|\xe2\x80\x9c|\xe2\x80\x9d|\xe2\x80\xa2|</div>|<br>|\t|\n|\r',' ',allQA[i].strip())
+                answer.append(re.sub(r'\xe2\x80\x99',r"'",astring).strip())
         #fill poster info
         poster_url = extractor['poster_page'].extract_links(response)[0].url
         poster_id = poster_url.split('/')[-1]
         [demo,interest] = get_userinfo(poster_url)
 
         print "title %s " %title
-        print "reply: %d" %reply_num
+
+        item = {'title':title,
+                'reply_num': reply_num,
+                'post_id':post_id,
+                'url':url,
+                'poster_id':poster_id,
+                'poster_demo':demo,
+                'poster_interests':interest,
+                'question':question,
+                'replies':answer}
+        print answer
+        string = json.dumps(item)
+        file.write(string)
+        file.write('\n')
+file.close()
 
 
 
