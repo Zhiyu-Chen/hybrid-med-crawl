@@ -46,6 +46,14 @@ def get_userinfo(user_page):
     except urllib2.HTTPError, e:
         print e.code
         print e.read()
+        return demo,interest
+    except urllib2.URLError, e:
+        print e.code
+        return demo,interest
+    except httplib.HTTPException, e:
+        print e.code
+        return demo,interest
+
     user_soup = BeautifulSoup(user_html, "lxml")  # soup for user homepage
 
     # find the user's interests
@@ -98,6 +106,15 @@ for page_Number in range(0, 232):
     except urllib2.HTTPError, e:
         print e.code
         print e.read()
+        continue
+    except urllib2.URLError,e:
+        print e.code
+        print e.read()
+        continue
+    except httplib.HTTPException,e:
+        print e.code()
+        print e.read()
+        continue
 
     soup = BeautifulSoup(community_page, "lxml")
 
@@ -106,7 +123,20 @@ for page_Number in range(0, 232):
     for page_url in extractor['post_page'].extract_links(response):
         req = urllib2.Request(page_url.url, headers={
         'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36"})
-        post_page = urllib2.urlopen(req)
+        try:
+            post_page = urllib2.urlopen(req)
+        except urllib2.HTTPError,e:
+                print e.code
+                print e.read()
+                continue
+        except urllib2.URLError,e:
+                print e.code
+                print e.read()
+                continue
+        except httplib.HTTPException,e:
+                print e.code()
+                print e.read()
+                continue
         post_soup = BeautifulSoup(post_page, "lxml")
         post_response = HtmlResponse(url=page_url.url, body=str(post_soup))
         path = old_path
@@ -148,7 +178,7 @@ for page_Number in range(0, 232):
                 astring = re.sub(r'<div(.*)none">|<div class(.*)</div>|\xa0|\xe2\x80\x99|&gt;|&lt;|\xe2\x80\x94|\xe2\x80\xa6|\xe2\x80\x9c|\xe2\x80\x9d|\xe2\x80\xa2|</div>|<br>|\t|\n|\r',' ',allQA[i].strip())
                 answer.append(re.sub(r'\xe2\x80\x99',r"'",astring).strip())
         #fill poster info
-        poster_url = extractor['poster_page'].extract_links(response)[0].url
+        poster_url = extractor['poster_page'].extract_links(post_response)[0].url
         poster_id = poster_url.split('/')[-1]
         [demo,interest] = get_userinfo(poster_url)
 
